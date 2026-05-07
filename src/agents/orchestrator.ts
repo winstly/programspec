@@ -1,6 +1,6 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs';
-import { loadSchema } from '../core/artifact-graph/index.js';
+import { loadSchema, ArtifactGraph, detectCompleted } from '../core/artifact-graph/index.js';
 import { TaskGraphManager } from './task-graph.js';
 import { ProfileManager } from './profile-manager.js';
 import { SharedStateStore } from '../memory/shared-state-store.js';
@@ -244,6 +244,26 @@ export class Orchestrator {
       failed,
       pending,
       results,
+    };
+  }
+
+  /**
+   * Get the next ready stage (first artifact not yet completed whose dependencies are met)
+   */
+  getNextReadyStage(programName: string): { stage: string | null; isComplete: boolean } {
+    const schema = loadSchema('spec-driven', this.projectRoot);
+    const graph = ArtifactGraph.fromYaml(schema);
+    const programDir = path.join(this.projectRoot, 'programs', programName);
+    const completed = detectCompleted(graph, programDir);
+
+    if (graph.isComplete(completed)) {
+      return { stage: null, isComplete: true };
+    }
+
+    const nextArtifacts = graph.getNextArtifacts(completed);
+    return {
+      stage: nextArtifacts.length > 0 ? nextArtifacts[0] : null,
+      isComplete: false,
     };
   }
 

@@ -3,7 +3,7 @@ import type { WorkflowTemplate } from '../types.js';
 const NEW_PROGRAM_INSTRUCTION = `
 # Create New Program
 
-Create a new program with programspec.
+Create a new program with programspec - set up the directory structure and show the first artifact instructions, then STOP and wait for user direction.
 
 ---
 
@@ -23,8 +23,8 @@ The user runs: \`programspec new program <name> [--schema <schema>] [--descripti
 2. Validate name is kebab-case (lowercase, numbers, hyphens only)
 
 **If name already exists:**
-- Show: "Program '<name>' already exists. Choose a different name."
-- Exit without making changes
+- Suggest continuing that program instead: "Program '<name>' already exists. Want to continue working on it?"
+- If yes, proceed with the continue workflow
 
 ---
 
@@ -48,95 +48,52 @@ Rules:
 ### 2. Check schema exists
 
 \`\`\`bash
-ls schemas/<schema>/schema.yaml
+programspec schemas --json
 \`\`\`
 
 - If schema does not exist: show available schemas, exit
 - If schema exists: continue
 
-### 3. Create directory structure
+### 3. Create the program
 
 \`\`\`bash
-mkdir -p programs/<name>/
-mkdir -p programs/<name>/artifacts/
-mkdir -p programs/<name>/profile/
-mkdir -p programs/<name>/profile/memory/decisions/
-mkdir -p programs/<name>/profile/memory/preferences/
-mkdir -p programs/<name>/task-graph/
-mkdir -p programs/<name>/agent-runs/
-mkdir -p programs/<name>/specs/
+programspec new program "<name>"
 \`\`\`
 
-### 4. Write metadata
+Add \`--schema <name>\` only if the user requested a different workflow.
 
-Create \`programs/<name>/metadata.json\`:
+### 4. Show the artifact status
 
-\`\`\`json
-{
-  "name": "<name>",
-  "schema": "<schema>",
-  "created": "2026-05-07",
-  "version": "1.0.0"
-}
+\`\`\`bash
+programspec status --program "<name>"
 \`\`\`
 
-### 5. Write profile files
+This shows which artifacts need to be created and which are ready (dependencies satisfied).
 
-**profile.json:**
-\`\`\`json
-{
-  "name": "<name>",
-  "type": "general",
-  "techStack": [],
-  "members": [],
-  "created": "2026-05-07"
-}
+### 5. Get instructions for the first artifact
+
+The first artifact depends on the schema (e.g., \`intent\` for spec-driven).
+Check the status output to find the first artifact with status "ready".
+\`\`\`bash
+programspec instructions <first-artifact-id> --program "<name>"
 \`\`\`
 
-**conventions.md:**
-\`\`\`markdown
-# Conventions
+This outputs the template and instructions for creating the first artifact.
 
-Project-specific conventions and guidelines.
-\`\`\`
+### 6. STOP and wait for user direction
 
-**patterns.md:**
-\`\`\`markdown
-# Patterns
-
-Common patterns used in this project.
-\`\`\`
-
-**agents.yaml:**
-\`\`\`yaml
-# Agent Configuration for <name>
-\`\`\`
+**Do NOT create any artifacts yet.** Just show the instructions and wait.
 
 ---
 
 ## Output
 
-### On success:
-\`\`\`
-✓ Created program '<name>' at programs/<name>/
-
-Next steps:
-  programspec status --program <name>  # View program status
-  # Edit artifacts/intent.md to define the program intent
-\`\`\`
-
-### If name already exists:
-\`\`\`
-✗ Program '<name>' already exists at programs/<name>/
-  Choose a different name.
-\`\`\`
-
-### If invalid name:
-\`\`\`
-✗ Invalid program name '<name>'.
-  Use kebab-case: lowercase letters, numbers, and hyphens.
-  Example: my-app, data-pipeline, user-auth
-\`\`\`
+After completing the steps, summarize:
+- Program name and location
+- Schema/workflow being used and its artifact sequence
+- Current status (0/N artifacts complete)
+- The instructions for the first artifact
+- Prompt: "Ready to create the first artifact? Run \`programspec continue --program <name>\` or just describe what this program is about and I'll draft it."
 
 ---
 
@@ -145,9 +102,12 @@ Next steps:
 - **DO** validate name format before creating anything
 - **DO** create all subdirectories needed for the 7-stage workflow
 - **DO** initialize profile files with sensible defaults
-- **DON'T** create the program if it already exists
-- **DON'T** generate artifacts during creation — only structure
-- **DON'T** start execution — user must run \`programspec run <name>\` separately
+- **DON'T** create any artifacts yet - just show the instructions
+- **DON'T** advance beyond showing the first artifact template
+- **DON'T** start execution — user must run \`programspec continue\` separately
+- If the name is invalid (not kebab-case), ask for a valid name
+- If a program with that name already exists, suggest continuing that program instead
+- Pass --schema if using a non-default workflow
 `;
 
 export const newProgramWorkflow: WorkflowTemplate = {
@@ -167,7 +127,7 @@ export const newProgramWorkflow: WorkflowTemplate = {
     name: 'programspec New Program',
     description: 'Create a new program with programspec',
     category: 'Workflow',
-    tags: ['new', 'program'],
+    tags: ['new', 'program', 'workflow'],
     content: NEW_PROGRAM_INSTRUCTION,
   },
 };

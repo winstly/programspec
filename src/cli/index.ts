@@ -153,10 +153,10 @@ newCmd
     }
   });
 
-// Run command - execute a program
+// Run command - execute a program (fast-forward mode)
 program
   .command('run <name>')
-  .description('Run a program through the execution stages')
+  .description('Run a program through all execution stages (fast-forward mode)')
   .option('--dry-run', 'Show what would be executed without running')
   .option('--from <stage>', 'Start from a specific stage')
   .option('--json', 'Output as JSON')
@@ -183,6 +183,42 @@ program
       console.log(`  Completed: ${result.completed}`);
       console.log(`  Failed: ${result.failed}`);
       console.log(`  Pending: ${result.pending}`);
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+// Continue command - get next ready artifact
+program
+  .command('continue')
+  .description('Continue working on a program - get the next artifact to create')
+  .option('--program <name>', 'Program name to continue')
+  .option('--schema <name>', 'Schema override')
+  .option('--json', 'Output as JSON')
+  .action(async (options?: { program?: string; schema?: string; json?: boolean }) => {
+    try {
+      const { continueCommand } = await import('../commands/workflow/continue-program.js');
+      await continueCommand(options ?? {});
+    } catch (error) {
+      console.log();
+      ora().fail(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  });
+
+// Instructions command - get instructions for creating an artifact
+program
+  .command('instructions <artifact-id>')
+  .description('Get instructions for creating a specific artifact')
+  .option('--program <name>', 'Program name')
+  .option('--schema <name>', 'Schema override')
+  .option('--json', 'Output as JSON')
+  .action(async (artifactId: string, options?: { program?: string; schema?: string; json?: boolean }) => {
+    try {
+      const { instructionsCommand } = await import('../commands/workflow/instructions.js');
+      await instructionsCommand(artifactId, options ?? {});
     } catch (error) {
       console.log();
       ora().fail(`Error: ${(error as Error).message}`);
@@ -288,6 +324,9 @@ program
       console.log('  - Investigate design options');
       console.log('  - Map out system architecture');
       console.log('  - Identify risks and unknowns\n');
+      console.log('When ready, create a program:');
+      console.log('  programspec new program <name>');
+      console.log('  programspec continue --program <name>\n');
     } catch (error) {
       console.log();
       ora().fail(`Error: ${(error as Error).message}`);

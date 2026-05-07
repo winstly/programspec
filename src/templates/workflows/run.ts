@@ -1,9 +1,11 @@
 import type { WorkflowTemplate } from '../types.js';
 
 const RUN_INSTRUCTION = `
-# Run Program
+# Run Program (Fast-Forward Mode)
 
-Execute a program through the 7-stage execution workflow.
+Create all artifacts for a program in dependency order. This is the "fast-forward" mode that creates everything at once.
+
+**For step-by-step guided mode, use \`programspec continue --program <name>\` instead.**
 
 ---
 
@@ -13,7 +15,7 @@ The user provides a program name: \`programspec run <name>\`
 
 **Optional flags:**
 - \`--dry-run\` — Show what would be executed without running
-- \`--from <stage>\` — Start from a specific stage (intent, modeling, planning, execution, evaluation, learning, evolution)
+- \`--from <stage>\` — Start from a specific stage
 - \`--json\` — Output as JSON
 
 **If program name is missing:**
@@ -44,15 +46,9 @@ programspec status --program <name> --json
 Parse the JSON output to understand:
 - \`artifacts\`: array of artifact statuses (done/ready/blocked)
 - \`isComplete\`: boolean
-- \`applyRequires\`: which artifacts are needed
 
 **If all artifacts are done:**
 - Show: "All artifacts complete! Program is ready for evaluation."
-- Suggest: \`programspec evaluate <name>\`
-
-**If some artifacts are blocked:**
-- Show which artifacts are blocked and by what dependencies
-- Suggest completing dependencies first
 
 ### 3. Determine execution mode
 
@@ -66,70 +62,48 @@ Parse the JSON output to understand:
 1. Skip all stages before the specified stage
 2. Start execution from the specified stage
 
-### 4. Execute stages sequentially
+### 4. Create artifacts in sequence
 
-For each stage in order (or starting from \`--from\`):
+Use the **TodoWrite tool** to track progress through the artifacts.
 
-\`\`\`
-Stage 1/7: intent      → intent-agent
-Stage 2/7: modeling    → modeling-agent
-Stage 3/7: planning    → planner-agent
-Stage 4/7: execution   → coder-agent
-Stage 5/7: evaluation  → evaluation-agent
-Stage 6/7: learning    → reflection-agent
-Stage 7/7: evolution   → evolution-agent
-\`\`\`
+Loop through artifacts in dependency order (artifacts with no pending dependencies first):
 
-For each stage:
-1. Print: \`[Stage X/7] <stage-name>\`
-2. Run: \`programspec run <name> --from <stage> --json\`
-3. Check the result:
-   - If \`status: "completed"\`: continue to next stage
-   - If \`status: "failed"\`: show error, stop execution
-   - If \`status: "pending"\`: show warning, continue
+a. **For each artifact that is \`ready\` (dependencies satisfied)**:
+   - Get instructions:
+     \`\`\`bash
+     programspec instructions <artifact-id> --program "<name>" --json
+     \`\`\`
+   - Read any completed dependency files for context
+   - Create the artifact file using \`template\` as the structure
+   - Follow \`instruction\` for content guidance
+   - Show brief progress: "Created <artifact-id>"
 
-### 5. Show execution summary
+b. **Continue until all artifacts are complete**
+   - After creating each artifact, re-run \`programspec status --program "<name>" --json\`
+   - Stop when \`isComplete\` is true
 
-After all stages complete (or on failure), show:
+c. **If an artifact requires user input** (unclear context):
+   - Use **AskUserQuestion tool** to clarify
+   - Then continue with creation
 
-\`\`\`
-Execution Summary:
-  Program:    <name>
-  Stages:     X/7 completed
-  Duration:   Xm Xs
-  Status:     ✓ success / ✗ failed
+### 5. Show final status
+
+\`\`\`bash
+programspec status --program <name>
 \`\`\`
 
 ---
 
 ## Output
 
-### During execution:
-\`\`\`
-[Orchestrator] Executing stage: intent
-[Orchestrator] Agent: intent-agent
-[Stage 1/7] intent ✓
-
-[Orchestrator] Executing stage: modeling
-[Orchestrator] Agent: modeling-agent
-[Stage 2/7] modeling ✓
-
-...
-
-[Orchestrator] Executing stage: execution
-[Orchestrator] Agent: coder-agent
-[Stage 4/7] execution ✓
-\`\`\`
-
 ### On success:
 \`\`\`
-Execution Summary:
-  Program:    my-app
-  Stages:     7/7 completed
-  Duration:   2m 34s
-  Status:     ✓ success
+✓ All artifacts created for program '<name>'
 
-Next: programspec evaluate my-app
+Progress: 7/7 artifacts complete
+
+Next steps:
+  programspec evaluate <name>  # Evaluate results
 \`\`\`
 
 ### On failure:
@@ -138,19 +112,20 @@ Next: programspec evaluate my-app
   Error: Build failed with 3 errors
 
 Execution interrupted at stage 4/7.
-Fix the errors and run again with: programspec run my-app --from execution
+Fix the errors and run again with: programspec run <name> --from execution
 \`\`\`
 
 ---
 
 ## Guardrails
 
-- **DO** show progress for each stage as it completes
+- **DO** show progress for each artifact as it completes
 - **DO** save partial progress if execution fails mid-way
 - **DO** suggest \`--from\` flag when resuming after failure
-- **DON'T** skip stages unless \`--from\` is explicitly set
-- **DON'T** run stages in parallel — they have dependencies
+- **DON'T** skip artifacts unless \`--from\` is explicitly set
+- **DON'T** run artifacts in parallel — they have dependencies
 - **DON'T** execute without validating the program exists first
+- **IMPORTANT**: If context is critically unclear, ask the user — but prefer making reasonable decisions to keep momentum
 `;
 
 export const runWorkflow: WorkflowTemplate = {
@@ -170,7 +145,7 @@ export const runWorkflow: WorkflowTemplate = {
     name: 'programspec Run',
     description: 'Run a program through the execution stages',
     category: 'Workflow',
-    tags: ['run', 'execute'],
+    tags: ['run', 'execute', 'workflow'],
     content: RUN_INSTRUCTION,
   },
 };

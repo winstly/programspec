@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { parse as parseYaml } from 'yaml';
 import { getHomeDir } from '../../utils/home-dir.js';
 import { loadSchema } from './schema.js';
 import { ArtifactGraph } from './graph.js';
@@ -60,7 +61,22 @@ export function loadChangeContext(
   schemaName?: string
 ): ChangeContext {
   const programDir = path.join(projectRoot, 'programs', programName);
-  const resolvedSchema = schemaName || 'spec-driven';
+
+  let resolvedSchema = schemaName;
+  if (!resolvedSchema) {
+    const configPath = path.join(projectRoot, '.programspec', 'config.yaml');
+    if (fs.existsSync(configPath)) {
+      try {
+        const config = parseYaml(fs.readFileSync(configPath, 'utf-8')) as Record<string, unknown>;
+        if (typeof config?.schema === 'string') {
+          resolvedSchema = config.schema;
+        }
+      } catch {
+        // Fall through to default
+      }
+    }
+    resolvedSchema = resolvedSchema || 'spec-driven';
+  }
 
   const schema = loadSchema(resolvedSchema, projectRoot);
   const graph = ArtifactGraph.fromYaml(schema);

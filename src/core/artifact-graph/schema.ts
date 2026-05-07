@@ -63,9 +63,9 @@ export function parseSchema(content: string): SchemaYaml {
  */
 export function resolveSchemaPath(schemaName: string, basePath = process.cwd()): string | null {
   const searchPaths = [
+    path.join(basePath, '.programspec', 'workflows', schemaName, 'schema.yaml'),
     path.join(basePath, 'schemas', schemaName, 'schema.yaml'),
     path.join(basePath, 'schemas', `${schemaName}.yaml`),
-    path.join(basePath, '.programspec', 'workflows', schemaName, 'schema.yaml'),
     path.join(getHomeDir(), '.programspec', 'schemas', schemaName, 'schema.yaml'),
   ];
 

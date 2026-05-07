@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { createRequire } from 'module';
 import ora from 'ora';
 import path from 'path';
-import { promises as fs } from 'fs';
+import * as fs from 'node:fs';
 import { showWelcome } from './welcome.js';
 import {
   statusCommand,
@@ -46,7 +46,10 @@ program
   .action(async (targetPath = '.', options?: { force?: boolean }) => {
     try {
       const resolvedPath = path.resolve(targetPath);
-      const stats = await fs.stat(resolvedPath);
+      if (!fs.existsSync(resolvedPath)) {
+        throw new Error(`Path "${targetPath}" does not exist. Create it first or specify an existing directory.`);
+      }
+      const stats = await fs.promises.stat(resolvedPath);
       if (!stats.isDirectory()) {
         throw new Error(`Path "${targetPath}" is not a directory`);
       }
@@ -196,7 +199,7 @@ program
     try {
       const programDir = path.join(process.cwd(), 'programs', name);
 
-      if (!require('fs').existsSync(programDir)) {
+      if (!fs.existsSync(programDir)) {
         throw new Error(`Program '${name}' not found`);
       }
 
@@ -206,12 +209,12 @@ program
       if (options?.json) {
         console.log(JSON.stringify({
           program: name,
-          hasEvaluation: require('fs').existsSync(evalPath),
+          hasEvaluation: fs.existsSync(evalPath),
         }, null, 2));
         return;
       }
 
-      if (require('fs').existsSync(evalPath)) {
+      if (fs.existsSync(evalPath)) {
         console.log(`Evaluation for '${name}' exists.`);
         console.log(`See: programs/${name}/artifacts/evaluation.md`);
       } else {
@@ -271,7 +274,7 @@ program
       if (options?.program) {
         console.log(`Context: program '${options.program}'`);
         const programDir = path.join(process.cwd(), 'programs', options.program);
-        if (require('fs').existsSync(programDir)) {
+        if (fs.existsSync(programDir)) {
           console.log(`  artifacts/  - Generated artifacts`);
           console.log(`  profile/    - Program profile`);
           console.log(`  task-graph/ - Task dependency graph`);

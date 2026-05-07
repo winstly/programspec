@@ -1,5 +1,6 @@
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { escapeYamlValue } from './yaml-utils.js';
 
 export const forgecodeAdapter: ToolCommandAdapter = {
   toolId: 'forgecode',
@@ -8,8 +9,8 @@ export const forgecodeAdapter: ToolCommandAdapter = {
   },
   formatFile(content: CommandContent): string {
     return `---
-name: programspec-${content.id}
-description: ${content.description}
+name: ${escapeYamlValue(`programspec-${content.id}`)}
+description: ${escapeYamlValue(content.description)}
 ---
 
 ${content.body}

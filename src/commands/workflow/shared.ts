@@ -5,7 +5,7 @@ import { getHomeDir } from '../../utils/home-dir.js';
 export const DEFAULT_SCHEMA = 'spec-driven';
 export const WORKSPACE_METADATA_DIR = '.programspec';
 export const WORKSPACE_CONFIG_FILE = 'config.yaml';
-export const WORKSPACE_CHANGES_DIR = 'programs';
+export const WORKSPACE_PROGRAMS_DIR = 'programs';
 
 /**
  * Validate program name follows kebab-case convention.

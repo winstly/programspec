@@ -1,19 +1,19 @@
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { transformToHyphenCommands } from '../../../shared/command-references.js';
 import { escapeYamlValue } from './yaml-utils.js';
 
-export const codebuddyAdapter: ToolCommandAdapter = {
-  toolId: 'codebuddy',
+export const opencodeAdapter: ToolCommandAdapter = {
+  toolId: 'opencode',
   getFilePath(commandId: string): string {
-    return path.join('.codebuddy', 'commands', `programspec-${commandId}.md`);
+    return path.join('.opencode', 'commands', `programspec-${commandId}.md`);
   },
   formatFile(content: CommandContent): string {
     return `---
-name: ${escapeYamlValue(`programspec-${content.id}`)}
 description: ${escapeYamlValue(content.description)}
 ---
 
-${content.body}
+${transformToHyphenCommands(content.body)}
 `;
   },
 };

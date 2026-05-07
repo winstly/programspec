@@ -4,31 +4,8 @@ import { loadSchema } from '../core/artifact-graph/index.js';
 import { TaskGraphManager } from './task-graph.js';
 import { ProfileManager } from './profile-manager.js';
 import { SharedStateStore } from '../memory/shared-state-store.js';
-
-/**
- * Stage to Agent mapping
- */
-const STAGE_AGENTS: Record<string, string> = {
-  intent: 'intent-agent',
-  modeling: 'modeling-agent',
-  planning: 'planner-agent',
-  execution: 'coder-agent',
-  evaluation: 'evaluation-agent',
-  learning: 'reflection-agent',
-  evolution: 'evolution-agent',
-};
-
-const STAGE_ADDITIONAL_AGENTS: Record<string, string[]> = {
-  planning: ['architect-agent'],
-  execution: ['qa-agent', 'reviewer-agent'],
-};
-
-function getAgentsForStageFn(stage: string): string[] {
-  const primary = STAGE_AGENTS[stage];
-  if (!primary) return ['coder-agent'];
-  const additional = STAGE_ADDITIONAL_AGENTS[stage] || [];
-  return [primary, ...additional];
-}
+import { getAgentForStage, getAgentsForStage } from './loader.js';
+import type { AgentDefinition } from './types.js';
 
 /**
  * Orchestrator - the central coordinator for program execution
@@ -45,14 +22,17 @@ export class Orchestrator {
   }
 
   /**
-   * Get the agent for a specific stage
+   * Get the agent definition for a specific stage
    */
-  getAgentForStage(stage: string): string {
-    return STAGE_AGENTS[stage] || 'coder-agent';
+  getAgentForStage(stage: string): AgentDefinition | null {
+    return getAgentForStage(stage, this.projectRoot);
   }
 
-  getAllAgentsForStage(stage: string): string[] {
-    return getAgentsForStageFn(stage);
+  /**
+   * Get all agent definitions for a specific stage
+   */
+  getAllAgentsForStage(stage: string): AgentDefinition[] {
+    return getAgentsForStage(stage, this.projectRoot);
   }
 
   /**
@@ -64,16 +44,17 @@ export class Orchestrator {
     options: { dryRun?: boolean; context?: Record<string, unknown> } = {}
   ): Promise<ExecutionResult> {
     const agent = this.getAgentForStage(stage);
+    const agentName = agent?.name ?? stage;
     const profile = this.profileManager.loadProfile(programName);
 
     console.log(`\n[Orchestrator] Executing stage: ${stage}`);
-    console.log(`[Orchestrator] Agent: ${agent}`);
+    console.log(`[Orchestrator] Agent: ${agentName}`);
 
     if (options.dryRun) {
       console.log('[Orchestrator] Dry run - skipping actual execution');
       return {
         stage,
-        agent,
+        agent: agentName,
         status: 'pending',
         message: 'Dry run - execution skipped',
       };
@@ -81,7 +62,7 @@ export class Orchestrator {
 
     await this.shared.set(
       `programs/${programName}/current-stage`,
-      { stage, agent, status: 'running' },
+      { stage, agent: agentName, status: 'running' },
       'orchestrator'
     );
 
@@ -96,14 +77,34 @@ export class Orchestrator {
         artifact.generates
       );
       if (fs.existsSync(artifactPath)) {
+        const content = fs.readFileSync(artifactPath, 'utf-8');
+
+        if (stage === 'evaluation') {
+          const hasFailed = this.isEvaluationFailed(content);
+          if (hasFailed) {
+            await this.shared.set(
+              `programs/${programName}/current-stage`,
+              { stage, agent: agentName, status: 'failed' },
+              'orchestrator'
+            );
+            return {
+              stage,
+              agent: agentName,
+              status: 'failed',
+              message: `Evaluation failed: not all success criteria met. Artifact: ${artifact.generates}`,
+              context: options.context,
+            };
+          }
+        }
+
         await this.shared.set(
           `programs/${programName}/current-stage`,
-          { stage, agent, status: 'completed' },
+          { stage, agent: agentName, status: 'completed' },
           'orchestrator'
         );
         return {
           stage,
-          agent,
+          agent: agentName,
           status: 'completed',
           message: `Artifact already exists: ${artifact.generates}`,
           context: options.context,
@@ -111,32 +112,62 @@ export class Orchestrator {
       }
     }
 
-    const agentConfigPath = path.join(this.projectRoot, '.programspec', 'agents', agent, 'config.json');
-    let agentConfig: Record<string, unknown> = {};
-    if (fs.existsSync(agentConfigPath)) {
-      agentConfig = JSON.parse(fs.readFileSync(agentConfigPath, 'utf-8'));
-    }
-
     const overrides = this.profileManager.loadAgentOverrides(programName);
-    const override = overrides.find(o => o.name === agent);
+    const override = overrides.find(o => o.name === agentName);
 
     const context = {
       programName,
       stage,
-      agent,
+      agent: agentName,
+      agentDefinition: agent,
       profile,
-      agentConfig,
       overrides: override,
       ...options.context,
     };
 
     return {
       stage,
-      agent,
+      agent: agentName,
       status: 'pending',
-      message: `Stage "${stage}" is ready to execute with ${agent}`,
+      message: `Stage "${stage}" is ready to execute with ${agentName}`,
       context,
     };
+  }
+
+  /**
+   * Check if evaluation content indicates failure
+   */
+  private isEvaluationFailed(content: string): boolean {
+    const lower = content.toLowerCase();
+
+    // JSON format: "goalAchieved": false
+    if (lower.includes('"goalachieved":false') || lower.includes('"goalachieved": false')) {
+      return true;
+    }
+
+    // Markdown format: Overall indicates failure - supports multiple formats
+    // Format: "overall: 2/3 metrics achieved (67%)"
+    // Format: "overall: 2 of 3 metrics achieved (67%)"
+    // Format: "overall: 2/3 (67%)"
+    const overallMatch = lower.match(/overall:\s*(\d+)\s*[\/of]\s*(\d+)\s*(?:metrics?)?\s*(?:achieved)?\s*\((\d+)%\)/);
+    if (overallMatch) {
+      const percentage = parseInt(overallMatch[3], 10);
+      if (percentage < 100) return true;
+    }
+
+    // Format: "overall: 2/3 metrics" (without percentage)
+    const overallNMatch = lower.match(/overall:\s*(\d+)\s*\/\s*(\d+)\s*metrics?/);
+    if (overallNMatch) {
+      const achieved = parseInt(overallNMatch[1], 10);
+      const total = parseInt(overallNMatch[2], 10);
+      if (achieved < total) return true;
+    }
+
+    // Explicit fail/failure marker
+    if (/status:\s*fail(ed)?/i.test(content)) return true;
+    if (/##\s*overall\s*\n+\s*fail/i.test(content)) return true;
+
+    return false;
   }
 
   /**
@@ -159,7 +190,6 @@ export class Orchestrator {
 
     const results: ExecutionResult[] = [];
     const retryCounts: Record<string, number> = {};
-    const executedStages = new Set<string>();
 
     while (currentStageIndex < stages.length) {
       const stage = stages[currentStageIndex];
@@ -167,7 +197,6 @@ export class Orchestrator {
       try {
         const result = await this.executeStage(programName, stage, { dryRun: options.dryRun });
         results.push(result);
-        executedStages.add(stage);
 
         if (result.status === 'failed') {
           // Check if this is the evaluation stage - support feedback loop
@@ -190,9 +219,10 @@ export class Orchestrator {
           }
         }
       } catch (error) {
+        const agent = this.getAgentForStage(stage);
         results.push({
           stage,
-          agent: this.getAgentForStage(stage),
+          agent: agent?.name ?? stage,
           status: 'failed',
           message: error instanceof Error ? error.message : 'Unknown error',
         });

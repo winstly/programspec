@@ -6,7 +6,7 @@ import { loadSchema } from './schema.js';
 import { ArtifactGraph } from './graph.js';
 import { detectCompleted } from './state.js';
 
-export interface ChangeContext {
+export interface ProgramContext {
   graph: ArtifactGraph;
   completed: CompletedSet;
   schemaName: string;
@@ -42,7 +42,7 @@ export interface ArtifactStatus {
   missingDeps?: string[];
 }
 
-export interface ChangeStatus {
+export interface ProgramStatus {
   programName: string;
   schemaName: string;
   isComplete: boolean;
@@ -55,11 +55,11 @@ type CompletedSet = Set<string>;
 /**
  * Load context for a program including graph and completion state.
  */
-export function loadChangeContext(
+export function loadProgramContext(
   projectRoot: string,
   programName: string,
   schemaName?: string
-): ChangeContext {
+): ProgramContext {
   const programDir = path.join(projectRoot, 'programs', programName);
 
   let resolvedSchema = schemaName;
@@ -96,7 +96,7 @@ export function loadChangeContext(
  * Generate enriched instructions for creating an artifact.
  */
 export function generateInstructions(
-  context: ChangeContext,
+  context: ProgramContext,
   artifactId: string
 ): ArtifactInstructions {
   const artifact = context.graph.getArtifact(artifactId);
@@ -126,7 +126,7 @@ export function generateInstructions(
 /**
  * Format the status of all artifacts in a program.
  */
-export function formatChangeStatus(context: ChangeContext): ChangeStatus {
+export function formatProgramStatus(context: ProgramContext): ProgramStatus {
   const schema = loadSchema(context.schemaName, context.projectRoot);
   const applyRequires = schema.apply?.requires ?? schema.artifacts.map(a => a.id);
 

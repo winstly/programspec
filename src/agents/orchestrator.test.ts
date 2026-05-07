@@ -45,6 +45,14 @@ artifacts:
     description: "Evaluate result"
     generates: "evaluation.md"
     requires: ["execution"]
+  - id: learning
+    description: "Capture lessons"
+    generates: "learning.md"
+    requires: ["evaluation"]
+  - id: evolution
+    description: "Evolve strategies"
+    generates: "evolution.md"
+    requires: ["learning"]
 `);
     orchestrator = new Orchestrator(tmpDir);
   });
@@ -54,30 +62,33 @@ artifacts:
   });
 
   it('maps stages to correct agents', () => {
-    expect(orchestrator.getAgentForStage('intent')).toBe('intent-agent');
-    expect(orchestrator.getAgentForStage('planning')).toBe('planner-agent');
-    expect(orchestrator.getAgentForStage('execution')).toBe('coder-agent');
-    expect(orchestrator.getAgentForStage('unknown')).toBe('coder-agent');
+    expect(orchestrator.getAgentForStage('intent')?.name).toBe('Intent Agent');
+    expect(orchestrator.getAgentForStage('planning')?.name).toBe('Architect Agent');
+    expect(orchestrator.getAgentForStage('execution')?.name).toBe('Coder Agent');
+    expect(orchestrator.getAgentForStage('unknown')).toBeNull();
   });
 
   it('returns all agents for a stage', () => {
     const planningAgents = orchestrator.getAllAgentsForStage('planning');
-    expect(planningAgents).toContain('planner-agent');
-    expect(planningAgents).toContain('architect-agent');
+    const planningNames = planningAgents.map(a => a.name);
+    expect(planningNames).toContain('Planner Agent');
+    expect(planningNames).toContain('Architect Agent');
 
     const executionAgents = orchestrator.getAllAgentsForStage('execution');
-    expect(executionAgents).toContain('coder-agent');
-    expect(executionAgents).toContain('qa-agent');
-    expect(executionAgents).toContain('reviewer-agent');
+    const executionNames = executionAgents.map(a => a.name);
+    expect(executionNames).toContain('Coder Agent');
+    expect(executionNames).toContain('QA Agent');
+    expect(executionNames).toContain('Reviewer Agent');
 
     const intentAgents = orchestrator.getAllAgentsForStage('intent');
-    expect(intentAgents).toEqual(['intent-agent']);
+    const intentNames = intentAgents.map(a => a.name);
+    expect(intentNames).toEqual(['Intent Agent']);
   });
 
   it('executes stage and returns pending status', async () => {
     const result = await orchestrator.executeStage('test-app', 'intent');
     expect(result.stage).toBe('intent');
-    expect(result.agent).toBe('intent-agent');
+    expect(result.agent).toBe('Intent Agent');
     expect(result.status).toBe('pending');
   });
 });

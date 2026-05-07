@@ -35,6 +35,8 @@ export async function newProgramCommand(name: string, options: NewProgramOptions
       path.join(programDir, 'profile', 'memory', 'decisions'),
       path.join(programDir, 'profile', 'memory', 'preferences'),
       path.join(programDir, 'task-graph'),
+      path.join(programDir, 'agent-runs'),
+      path.join(programDir, 'specs'),
     ];
 
     for (const dir of dirs) {

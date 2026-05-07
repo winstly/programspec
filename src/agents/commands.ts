@@ -1,7 +1,5 @@
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import ora from 'ora';
-import { getHomeDir } from '../utils/home-dir.js';
+import { loadAllAgents } from './loader.js';
 
 /**
  * List all available agents
@@ -11,25 +9,17 @@ export async function listAgentsCommand(options?: { json?: boolean }): Promise<v
 
   try {
     const projectRoot = process.cwd();
-    const agentsDir = path.join(projectRoot, '.programspec', 'agents');
-    const globalAgentsDir = path.join(getHomeDir(), '.programspec', 'agents');
-
-    const agents: AgentInfo[] = [];
-
-    // Scan project agents
-    if (fs.existsSync(agentsDir)) {
-      await scanAgentDir(agentsDir, agents, 'project');
-    }
-
-    // Scan global agents
-    if (fs.existsSync(globalAgentsDir)) {
-      await scanAgentDir(globalAgentsDir, agents, 'global');
-    }
+    const agents = loadAllAgents(projectRoot);
 
     spinner?.stop();
 
     if (options?.json) {
-      console.log(JSON.stringify({ agents }, null, 2));
+      console.log(JSON.stringify({ agents: agents.map(a => ({
+        name: a.name,
+        stage: a.stage,
+        description: a.description,
+        capabilities: a.capabilities,
+      })) }, null, 2));
       return;
     }
 
@@ -41,7 +31,7 @@ export async function listAgentsCommand(options?: { json?: boolean }): Promise<v
     console.log(`Available agents (${agents.length}):\n`);
     for (const agent of agents) {
       console.log(`  ${agent.name}`);
-      console.log(`    Type: ${agent.source}`);
+      console.log(`    Stage: ${agent.stage}`);
       console.log(`    Description: ${agent.description || 'N/A'}`);
       if (agent.capabilities && agent.capabilities.length > 0) {
         console.log(`    Capabilities: ${agent.capabilities.join(', ')}`);
@@ -51,43 +41,5 @@ export async function listAgentsCommand(options?: { json?: boolean }): Promise<v
   } catch (error) {
     spinner?.stop();
     throw error;
-  }
-}
-
-interface AgentInfo {
-  name: string;
-  source: string;
-  description?: string;
-  capabilities?: string[];
-  path: string;
-}
-
-async function scanAgentDir(dir: string, agents: AgentInfo[], source: string): Promise<void> {
-  const entries = await fs.promises.readdir(dir, { withFileTypes: true });
-
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-
-    const agentDir = path.join(dir, entry.name);
-    const configPath = path.join(agentDir, 'config.json');
-
-    if (fs.existsSync(configPath)) {
-      try {
-        const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-        agents.push({
-          name: entry.name,
-          source,
-          description: config.description,
-          capabilities: config.capabilities,
-          path: agentDir,
-        });
-      } catch {
-        agents.push({
-          name: entry.name,
-          source,
-          path: agentDir,
-        });
-      }
-    }
   }
 }

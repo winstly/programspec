@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import * as crypto from 'node:crypto';
 
 /**
  * Cross-platform file system utilities
@@ -39,12 +40,24 @@ export class FileSystemUtils {
   }
 
   /**
-   * Write file (creates parent directories if needed)
+   * Write file atomically (write to temp file, then rename).
+   * Prevents data corruption from concurrent writes.
    */
   static async writeFile(filePath: string, content: string): Promise<void> {
     const dir = path.dirname(filePath);
     await fs.promises.mkdir(dir, { recursive: true });
-    await fs.promises.writeFile(filePath, content, 'utf-8');
+
+    const tmpSuffix = crypto.randomBytes(6).toString('hex');
+    const tmpPath = `${filePath}.${tmpSuffix}.tmp`;
+
+    try {
+      await fs.promises.writeFile(tmpPath, content, 'utf-8');
+      await fs.promises.rename(tmpPath, filePath);
+    } catch (error) {
+      // Clean up temp file if rename failed
+      try { await fs.promises.unlink(tmpPath); } catch { /* ignore */ }
+      throw error;
+    }
   }
 
   /**

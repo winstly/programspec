@@ -1,0 +1,135 @@
+name: spec-driven
+version: 1
+description: ProgramSpec 7-stage execution workflow - intent → modeling → planning → execution → evaluation → learning → evolution
+artifacts:
+  - id: intent
+    generates: intent.md
+    description: Define goal, constraints, and success metrics
+    template: intent.md
+    instruction: |
+      Create the intent document that establishes WHY this program exists.
+
+      Sections:
+      - **Goal**: What is the primary objective? What problem does this solve?
+      - **Constraints**: Technical limitations, time constraints, resource limits
+      - **Success Metrics**: How will we know the program succeeded? Measurable criteria.
+      - **Scope**: What's in scope and what's explicitly out of scope
+      - **Stakeholders**: Who benefits from this? Who needs to be involved?
+
+      Keep it concise (1-2 pages). Focus on the "what" and "why", not the "how".
+    requires: []
+
+  - id: modeling
+    generates: modeling.md
+    description: System modeling with entities, states, and flows
+    template: modeling.md
+    instruction: |
+      Create the system model that defines WHAT the system looks like.
+
+      Sections:
+      - **Entities**: Key objects/concepts in the system (with attributes)
+      - **States**: State machines for key entities (with transitions)
+      - **Flows**: Data flows, user journeys, process flows
+      - **Relationships**: How entities relate to each other
+      - **Constraints**: Technical constraints from the model
+
+      Use diagrams liberally (ASCII art, Mermaid, or PlantUML).
+      This document drives the architecture - be thorough.
+    requires:
+      - intent
+
+  - id: planning
+    generates: planning.md
+    description: Generate task graph with dependencies
+    template: planning.md
+    instruction: |
+      Create the implementation plan that breaks down the work.
+
+      Sections:
+      - **Architecture**: High-level system design decisions
+      - **Technology Stack**: Languages, frameworks, libraries
+      - **Task Breakdown**: Numbered tasks with dependencies
+      - **Risk Assessment**: What could go wrong? Mitigations.
+      - **Timeline**: Estimated effort per task
+
+      Tasks should be:
+      - Small enough to complete in one session
+      - Ordered by dependency (what must be done first?)
+      - Verifiable (you know when it's done)
+    requires:
+      - modeling
+
+  - id: execution
+    generates: execution.md
+    description: Execute the implementation plan
+    template: execution.md
+    instruction: |
+      Document the implementation as it progresses.
+
+      For each task from the plan:
+      - **Task ID**: Reference to planning.md
+      - **Status**: Pending / In Progress / Complete / Blocked
+      - **Implementation Notes**: What was actually done
+      - **Files Changed**: Key files created or modified
+      - **Decisions**: Any deviations from the plan and why
+
+      This is a living document - update it as work progresses.
+    requires:
+      - planning
+
+  - id: evaluation
+    generates: evaluation.md
+    description: Evaluate results against success criteria
+    template: evaluation.md
+    instruction: |
+      Evaluate the implementation against the success metrics defined in intent.md.
+
+      For each success metric:
+      - **Metric**: The original metric from intent.md
+      - **Result**: Actual measured result
+      - **Status**: Achieved / Partially Achieved / Not Achieved
+      - **Evidence**: How was this measured?
+
+      **Overall Assessment**:
+      - Status: PASS / PARTIAL / FAIL
+      - Summary: Brief explanation
+      - Recommendations: What to do next
+
+      Be objective. Use data where possible.
+    requires:
+      - execution
+
+  - id: learning
+    generates: learning.md
+    description: Capture lessons learned and patterns
+    template: learning.md
+    instruction: |
+      Reflect on the program execution and capture learnings.
+
+      Sections:
+      - **What Went Well**: Successful patterns to repeat
+      - **What Could Improve**: Areas for improvement
+      - **Surprises**: Unexpected findings or challenges
+      - **Patterns**: Reusable patterns discovered
+      - **Anti-Patterns**: Things to avoid in future programs
+
+      Be honest and specific. These learnings feed into the evolution stage.
+    requires:
+      - evaluation
+
+  - id: evolution
+    generates: evolution.md
+    description: Update strategies and patterns based on experience
+    template: evolution.md
+    instruction: |
+      Update the system's knowledge base based on learnings.
+
+      Sections:
+      - **Strategy Updates**: Changes to agent strategies
+      - **Pattern Updates**: New or modified patterns
+      - **Process Improvements**: Changes to the workflow itself
+      - **Knowledge Gaps**: Areas that need more investigation
+
+      These updates should be actionable and specific.
+    requires:
+      - learning

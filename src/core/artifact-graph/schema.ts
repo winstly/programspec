@@ -1,8 +1,24 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parse as parseYaml } from 'yaml';
 import { getHomeDir } from '../../utils/home-dir.js';
 import type { SchemaYaml } from './types.js';
+
+/**
+ * Get the package's built-in schemas directory.
+ * Navigates from the compiled dist/core/artifact-graph/ up to the package root.
+ */
+export function getPackageSchemasDir(): string {
+  const currentFile = fileURLToPath(import.meta.url);
+  const packageRoot = path.resolve(path.dirname(currentFile), '..', '..', '..');
+  if (!fs.existsSync(path.join(packageRoot, 'package.json'))) {
+    throw new Error(
+      `getPackageSchemasDir: could not locate package root from ${currentFile}`
+    );
+  }
+  return path.join(packageRoot, 'schemas');
+}
 
 /**
  * Load and parse a schema YAML file.
@@ -67,6 +83,7 @@ export function resolveSchemaPath(schemaName: string, basePath = process.cwd()):
     path.join(basePath, 'schemas', schemaName, 'schema.yaml'),
     path.join(basePath, 'schemas', `${schemaName}.yaml`),
     path.join(getHomeDir(), '.programspec', 'schemas', schemaName, 'schema.yaml'),
+    path.join(getPackageSchemasDir(), schemaName, 'schema.yaml'),
   ];
 
   for (const p of searchPaths) {
@@ -88,6 +105,7 @@ export function listSchemas(basePath = process.cwd()): string[] {
     path.join(basePath, 'schemas'),
     path.join(basePath, '.programspec', 'workflows'),
     path.join(getHomeDir(), '.programspec', 'schemas'),
+    getPackageSchemasDir(),
   ];
 
   for (const dir of searchDirs) {

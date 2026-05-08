@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { getHomeDir } from '../../utils/home-dir.js';
-import { loadSchema } from './schema.js';
+import { loadSchema, getPackageSchemasDir } from './schema.js';
 import { ArtifactGraph } from './graph.js';
 import { detectCompleted } from './state.js';
 
@@ -197,6 +197,7 @@ function loadTemplate(schemaName: string, templatePath: string, projectRoot: str
     path.join(projectRoot, '.programspec', 'workflows', schemaName, 'templates', templatePath),
     path.join(projectRoot, '.programspec', 'workflows', schemaName, templatePath),
     path.join(getHomeDir(), '.programspec', 'schemas', schemaName, 'templates', templatePath),
+    path.join(getPackageSchemasDir(), schemaName, 'templates', templatePath),
   ];
 
   for (const p of searchPaths) {

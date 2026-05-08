@@ -143,7 +143,7 @@ ${agent.prompt}
     console.log('  .programspec/config.yaml  # Configuration file');
     console.log('  .programspec/agents/ # Agent definitions');
     console.log('  programs/            # Programs directory');
-    console.log('  schemas/             # Schema definitions');
+    console.log('  schemas/             # Schema overrides (built-in schemas available automatically)');
     console.log();
     console.log('Next steps:');
     console.log('  programspec new program <name>  # Create your first program');

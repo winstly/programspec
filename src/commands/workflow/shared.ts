@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getHomeDir } from '../../utils/home-dir.js';
+import { getPackageSchemasDir } from '../../core/artifact-graph/schema.js';
 
 export const DEFAULT_SCHEMA = 'spec-driven';
 export const WORKSPACE_METADATA_DIR = '.programspec';
@@ -42,6 +43,7 @@ export function validateSchemaExists(schemaName: string, projectRoot: string): s
     path.join(projectRoot, 'schemas', `${schemaName}.yaml`),
     path.join(projectRoot, '.programspec', 'workflows', schemaName),
     path.join(getHomeDir(), '.programspec', 'schemas', schemaName),
+    path.join(getPackageSchemasDir(), schemaName),
   ];
 
   for (const p of searchPaths) {
